@@ -21,6 +21,47 @@ public class Program
         // This ensures that we will always have an 'answer' ready that is valid
         FindSingleRandomRectangle(searchFields);
         OutputResults();
+
+        FindSolutionsUsingParticleAlgo(searchFields);
+    }
+
+    private static void FindSolutionsUsingParticleAlgo(ISearchField[] searchFields)
+    {
+        var searchParams = InitParticleSearchParams(searchFields);
+        while (true)
+        {
+            foreach (var searchField in searchFields)
+            {
+
+            }
+
+            OutputResults();
+        }
+    }
+
+    private static SearchParams[][] InitParticleSearchParams(ISearchField[] searchFields)
+    {
+        var searchParams = new SearchParams[searchFields.Length][];
+
+        for (var i = 0; i < searchFields.Length; i++)
+        {
+            var numberOfParticles = searchFields[i].NumberOfPoints / 3 + 1;
+
+            searchParams[i] = new SearchParams[numberOfParticles];
+
+            // Initialize all the particles with random values
+            for (var j = 0; j < numberOfParticles; j++)
+            {
+                var xPos = Random.Shared.NextSingle();
+                var yPos = Random.Shared.NextSingle();
+                searchParams[i][j].RectangleCenterXPos = xPos;
+                searchParams[i][j].RectangleCenterYPos = yPos;
+                searchParams[i][j].RectangleWidth = MathF.Min(xPos, 1 - xPos);
+                searchParams[i][j].RectangleHeight = MathF.Min(yPos, 1 - yPos);
+            }
+        }
+
+        return searchParams;
     }
 
     public static void OutputResults()
@@ -200,3 +241,14 @@ public class Rectangle
         return $"A: {A.X},{A.Y}  B: {B.X},{B.Y}";
     }
 }
+
+public class SearchParams
+{
+    public float RectangleCenterXPos { get; set; }
+    public float RectangleCenterYPos { get; set; }
+    //public float Angle;
+    public float RectangleWidth { get; set; }
+    public float RectangleHeight { get; set; }
+}
+
+public class Velocities : SearchParams { };
