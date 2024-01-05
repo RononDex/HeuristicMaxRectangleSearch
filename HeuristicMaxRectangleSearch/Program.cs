@@ -30,24 +30,28 @@ public class Program
         var searchParams = InitParticleSearchParams(searchFields);
         while (true)
         {
+            var foundNewSolution = false;
             foreach (var searchField in searchFields)
             {
 
             }
 
-            OutputResults();
+            if (foundNewSolution)
+            {
+                OutputResults();
+            }
         }
     }
 
-    private static SearchParams[][] InitParticleSearchParams(ISearchField[] searchFields)
+    private static SearchParticle[][] InitParticleSearchParams(ISearchField[] searchFields)
     {
-        var searchParams = new SearchParams[searchFields.Length][];
+        var searchParams = new SearchParticle[searchFields.Length][];
 
         for (var i = 0; i < searchFields.Length; i++)
         {
             var numberOfParticles = searchFields[i].NumberOfPoints / 3 + 1;
 
-            searchParams[i] = new SearchParams[numberOfParticles];
+            searchParams[i] = new SearchParticle[numberOfParticles];
 
             // Initialize all the particles with random values
             for (var j = 0; j < numberOfParticles; j++)
@@ -242,13 +246,28 @@ public class Rectangle
     }
 }
 
-public class SearchParams
+public class SearchParticle
 {
     public float RectangleCenterXPos { get; set; }
     public float RectangleCenterYPos { get; set; }
     //public float Angle;
     public float RectangleWidth { get; set; }
     public float RectangleHeight { get; set; }
+
+    public Velocities Velocities { get; } = new Velocities();
+    public ParticleParameters Parameters { get; } = new ParticleParamters();
 }
 
-public class Velocities : SearchParams { };
+public class ParticleParamters
+{
+    public float Momentum { get; set; }
+}
+
+public class Velocities
+{
+    public float RectangleCenterXPos { get; set; }
+    public float RectangleCenterYPos { get; set; }
+    //public float Angle;
+    public float RectangleWidth { get; set; }
+    public float RectangleHeight { get; set; }
+};
