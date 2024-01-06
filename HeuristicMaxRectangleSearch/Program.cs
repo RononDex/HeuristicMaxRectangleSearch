@@ -6,6 +6,8 @@ public class Program
     static float MaxSeconds = 0f;
     static DateTime StartTime = DateTime.Now;
     static Rectangle[] BiggestFoundRectangles;
+    static ParticleSearchParams[] GlobalBestParams;
+    static float[] GlobalBestFitness;
 
     public static void Main()
     {
@@ -27,13 +29,47 @@ public class Program
 
     private static void FindSolutionsUsingParticleAlgo(ISearchField[] searchFields)
     {
-        var searchParams = InitParticleSearchParams(searchFields);
+        var searchParticles = InitParticleSearchParams(searchFields);
         while (true)
         {
             var foundNewSolution = false;
-            foreach (var searchField in searchFields)
+            for (var i = 0; i < searchFields.Length; i++)
             {
+                var searchField = searchFields[i];
+                foreach (var particle in searchParticles[i])
+                {
+                    var rectangle = particle.AsRectangle();
+                    var fitness = 0f;
+                    if (!searchField.AnyPointsInRect(rectangle))
+                    {
+                        fitness = rectangle.Area;
 
+                        if (fitness > particle.BestFitness)
+                        {
+                            particle.BestFitness = fitness;
+                            particle.BestParamsSoFar.RectangleCenterYPos = particle.CurSearchParams.RectangleCenterYPos;
+                            particle.BestParamsSoFar.RectangleCenterXPos = particle.CurSearchParams.RectangleCenterXPos;
+                            particle.BestParamsSoFar.RectangleHeight = particle.CurSearchParams.RectangleHeight;
+                            particle.BestParamsSoFar.RectangleWidth = particle.CurSearchParams.RectangleWidth;
+
+                            if (fitness > GlobalBestFitness[i])
+                            {
+#if DEBUG
+                                Console.WriteLine($"Found new best solution for Field {i} with fitness / area of {fitness}");
+#endif
+                                GlobalBestFitness[i] = fitness;
+                                GlobalBestParams[i].RectangleCenterYPos = particle.CurSearchParams.RectangleCenterYPos;
+                                GlobalBestParams[i].RectangleCenterXPos = particle.CurSearchParams.RectangleCenterXPos;
+                                GlobalBestParams[i].RectangleHeight = particle.CurSearchParams.RectangleHeight;
+                                GlobalBestParams[i].RectangleWidth = particle.CurSearchParams.RectangleWidth;
+
+                                foundNewSolution = true;
+                            }
+                        }
+                    }
+                }
+
+                Step(searchField, searchParticles[i]);
             }
 
             if (foundNewSolution)
@@ -43,25 +79,60 @@ public class Program
         }
     }
 
+    private static void Step(ISearchField searchField, SearchParticle[] searchParticles)
+    {
+        foreach (var particle in searchParticles)
+        {
+            particle.CurSearchParams.RectangleCenterXPos += particle.Velocities.RectangleCenterXPos;
+            particle.CurSearchParams.RectangleCenterYPos += particle.Velocities.RectangleCenterYPos;
+            particle.CurSearchParams.RectangleWidth += particle.Velocities.RectangleWidth;
+            particle.CurSearchParams.RectangleHeight += particle.Velocities.RectangleHeight;
+
+            particle.CurSearchParams.RectangleCenterXPos = particle.CurSearchParams.RectangleCenterXPos % 1;
+            particle.CurSearchParams.RectangleCenterYPos = particle.CurSearchParams.RectangleCenterYPos % 1;
+            particle.CurSearchParams.RectangleWidth = particle.CurSearchParams.RectangleWidth % 1;
+            particle.CurSearchParams.RectangleHeight = particle.CurSearchParams.RectangleHeight % 1;
+        }
+    }
+
     private static SearchParticle[][] InitParticleSearchParams(ISearchField[] searchFields)
     {
         var searchParams = new SearchParticle[searchFields.Length][];
+        GlobalBestParams = new ParticleSearchParams[searchFields.Length];
+        GlobalBestFitness = new float[searchFields.Length];
 
         for (var i = 0; i < searchFields.Length; i++)
         {
             var numberOfParticles = searchFields[i].NumberOfPoints / 3 + 1;
 
             searchParams[i] = new SearchParticle[numberOfParticles];
+            GlobalBestFitness[i] = 0.0f;
+            GlobalBestParams[i] = new ParticleSearchParams();
 
             // Initialize all the particles with random values
             for (var j = 0; j < numberOfParticles; j++)
             {
+                searchParams[i][j] = new SearchParticle();
+
                 var xPos = Random.Shared.NextSingle();
                 var yPos = Random.Shared.NextSingle();
-                searchParams[i][j].RectangleCenterXPos = xPos;
-                searchParams[i][j].RectangleCenterYPos = yPos;
-                searchParams[i][j].RectangleWidth = MathF.Min(xPos, 1 - xPos);
-                searchParams[i][j].RectangleHeight = MathF.Min(yPos, 1 - yPos);
+                var width = Random.Shared.NextSingle();
+                var height = Random.Shared.NextSingle();
+                searchParams[i][j].CurSearchParams.RectangleCenterXPos = xPos;
+                searchParams[i][j].CurSearchParams.RectangleCenterYPos = yPos;
+                searchParams[i][j].CurSearchParams.RectangleWidth = MathF.Min(width, 1 - xPos);
+                searchParams[i][j].CurSearchParams.RectangleHeight = MathF.Min(height, 1 - yPos);
+
+                searchParams[i][j].Velocities.RectangleHeight = (Random.Shared.NextSingle() - 0.5f) * 0.01f;
+                searchParams[i][j].Velocities.RectangleWidth = (Random.Shared.NextSingle() - 0.5f) * 0.01f;
+                searchParams[i][j].Velocities.RectangleCenterYPos = (Random.Shared.NextSingle() - 0.5f) * 0.01f;
+                searchParams[i][j].Velocities.RectangleCenterXPos = (Random.Shared.NextSingle() - 0.5f) * 0.01f;
+
+                searchParams[i][j].Parameters.Z1 = Random.Shared.NextSingle();
+                searchParams[i][j].Parameters.Z2 = Random.Shared.NextSingle();
+
+                searchParams[i][j].Parameters.MemoryCoefficient = 0.3f;
+                searchParams[i][j].Parameters.SocialCoefficient = 0.5f;
             }
         }
 
@@ -248,19 +319,44 @@ public class Rectangle
 
 public class SearchParticle
 {
+    public ParticleSearchParams CurSearchParams { get; } = new ParticleSearchParams();
+    public ParticleSearchParams BestParamsSoFar { get; } = new ParticleSearchParams();
+    public float BestFitness { get; set; } = 0.0f;
+
+    public Velocities Velocities { get; } = new Velocities();
+    public ParticleParamters Parameters { get; } = new ParticleParamters();
+
+    public Rectangle AsRectangle()
+    {
+        return new Rectangle
+        {
+            A = new Point(CurSearchParams.RectangleCenterXPos - CurSearchParams.RectangleWidth / 2, CurSearchParams.RectangleCenterYPos - CurSearchParams.RectangleHeight / 2),
+            B = new Point(CurSearchParams.RectangleCenterXPos + CurSearchParams.RectangleWidth / 2, CurSearchParams.RectangleCenterYPos + CurSearchParams.RectangleHeight / 2),
+        };
+    }
+}
+
+public class ParticleSearchParams : ICloneable
+{
     public float RectangleCenterXPos { get; set; }
     public float RectangleCenterYPos { get; set; }
     //public float Angle;
     public float RectangleWidth { get; set; }
     public float RectangleHeight { get; set; }
 
-    public Velocities Velocities { get; } = new Velocities();
-    public ParticleParameters Parameters { get; } = new ParticleParamters();
+    public object Clone()
+    {
+        return MemberwiseClone();
+    }
 }
 
 public class ParticleParamters
 {
-    public float Momentum { get; set; }
+    public float Momentum { get; set; } = 0.3f;
+    public float Z1 { get; set; }
+    public float Z2 { get; set; }
+    public float MemoryCoefficient { get; set; }
+    public float SocialCoefficient { get; set; }
 }
 
 public class Velocities
