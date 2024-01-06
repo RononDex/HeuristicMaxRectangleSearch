@@ -63,6 +63,8 @@ public class Program
                                 GlobalBestParams[i].RectangleCenterXPos = particle.CurSearchParams.RectangleCenterXPos;
                                 GlobalBestParams[i].RectangleHeight = particle.CurSearchParams.RectangleHeight;
                                 GlobalBestParams[i].RectangleWidth = particle.CurSearchParams.RectangleWidth;
+                                BiggestFoundRectangles[i].A = rectangle.A;
+                                BiggestFoundRectangles[i].B = rectangle.B;
 
                                 foundNewSolution = true;
                             }
@@ -114,6 +116,58 @@ public class Program
                 particle.CurSearchParams.RectangleHeight = 0.0000001f;
                 particle.Velocities.RectangleHeight = Math.Abs(particle.Velocities.RectangleHeight);
             }
+
+            var limitHeight = 0.4f;
+            if (Math.Abs(particle.Velocities.RectangleHeight) >= limitHeight)
+            {
+                if (particle.Velocities.RectangleHeight < 0)
+                {
+                    particle.Velocities.RectangleHeight = -limitHeight;
+                }
+                else
+                {
+                    particle.Velocities.RectangleHeight = limitHeight;
+                }
+            }
+
+            var limitWidth = 0.4f;
+            if (Math.Abs(particle.Velocities.RectangleWidth) >= limitWidth)
+            {
+                if (particle.Velocities.RectangleWidth < 0)
+                {
+                    particle.Velocities.RectangleWidth = -limitWidth;
+                }
+                else
+                {
+                    particle.Velocities.RectangleWidth = limitWidth;
+                }
+            }
+
+            var limitX = 0.4f;
+            if (Math.Abs(particle.Velocities.RectangleCenterXPos) >= limitX)
+            {
+                if (particle.Velocities.RectangleCenterXPos < 0)
+                {
+                    particle.Velocities.RectangleCenterXPos = -limitX;
+                }
+                else
+                {
+                    particle.Velocities.RectangleWidth = limitX;
+                }
+            }
+
+            var limitY = 0.4f;
+            if (Math.Abs(particle.Velocities.RectangleCenterYPos) >= limitY)
+            {
+                if (particle.Velocities.RectangleCenterYPos < 0)
+                {
+                    particle.Velocities.RectangleCenterYPos = -limitY;
+                }
+                else
+                {
+                    particle.Velocities.RectangleCenterYPos = limitY;
+                }
+            }
         }
     }
 
@@ -145,7 +199,7 @@ public class Program
         return rectangle.A.X > 0 && rectangle.A.X < 1
                 && rectangle.A.Y > 0 && rectangle.A.Y < 1
                 && rectangle.B.X > 0 && rectangle.B.X < 1
-                && rectangle.B.Y > 0 && rectangle.B.X < 1;
+                && rectangle.B.Y > 0 && rectangle.B.Y < 1;
     }
 
     private static void Step(ISearchField searchField, SearchParticle[] searchParticles)
@@ -156,11 +210,6 @@ public class Program
             particle.CurSearchParams.RectangleCenterYPos += particle.Velocities.RectangleCenterYPos;
             particle.CurSearchParams.RectangleWidth += particle.Velocities.RectangleWidth;
             particle.CurSearchParams.RectangleHeight += particle.Velocities.RectangleHeight;
-
-            particle.CurSearchParams.RectangleCenterXPos = particle.CurSearchParams.RectangleCenterXPos % 1;
-            particle.CurSearchParams.RectangleCenterYPos = particle.CurSearchParams.RectangleCenterYPos % 1;
-            particle.CurSearchParams.RectangleWidth = particle.CurSearchParams.RectangleWidth % 1;
-            particle.CurSearchParams.RectangleHeight = particle.CurSearchParams.RectangleHeight % 1;
         }
     }
 
@@ -170,7 +219,7 @@ public class Program
 
         for (var i = 0; i < searchFields.Length; i++)
         {
-            int numberOfParticles = (int)MaxSeconds * 3 + 2;
+            int numberOfParticles = (((int)MaxSeconds * 3) / searchFields.Length) + 40;
 
             searchParams[i] = new SearchParticle[numberOfParticles];
 
@@ -188,6 +237,11 @@ public class Program
                 searchParams[i][j].CurSearchParams.RectangleWidth = MathF.Min(width, 1 - xPos);
                 searchParams[i][j].CurSearchParams.RectangleHeight = MathF.Min(height, 1 - yPos);
 
+                searchParams[i][j].BestParamsSoFar.RectangleHeight = searchParams[i][j].CurSearchParams.RectangleHeight;
+                searchParams[i][j].BestParamsSoFar.RectangleWidth = searchParams[i][j].CurSearchParams.RectangleWidth;
+                searchParams[i][j].BestParamsSoFar.RectangleCenterYPos = searchParams[i][j].CurSearchParams.RectangleCenterYPos;
+                searchParams[i][j].BestParamsSoFar.RectangleCenterXPos = searchParams[i][j].CurSearchParams.RectangleCenterXPos;
+
                 searchParams[i][j].Velocities.RectangleHeight = (Random.Shared.NextSingle() - 0.5f);
                 searchParams[i][j].Velocities.RectangleWidth = (Random.Shared.NextSingle() - 0.5f);
                 searchParams[i][j].Velocities.RectangleCenterYPos = (Random.Shared.NextSingle() - 0.5f) * 0.2f;
@@ -195,9 +249,10 @@ public class Program
 
                 searchParams[i][j].Parameters.Z1 = Random.Shared.NextSingle();
                 searchParams[i][j].Parameters.Z2 = Random.Shared.NextSingle();
+                searchParams[i][j].Parameters.Momentum = -0.3f;
 
-                searchParams[i][j].Parameters.MemoryCoefficient = 2.3f;
-                searchParams[i][j].Parameters.SocialCoefficient = 1.5f;
+                searchParams[i][j].Parameters.MemoryCoefficient = 1.5f;
+                searchParams[i][j].Parameters.SocialCoefficient = 1.2f;
             }
         }
 
