@@ -1,4 +1,5 @@
-﻿using System.Globalization;
+﻿using System.Diagnostics;
+using System.Globalization;
 using System.Numerics;
 using System.Text;
 using System.Timers;
@@ -6,7 +7,7 @@ using System.Timers;
 public class Program
 {
     static float MaxSeconds = 0f;
-    static DateTime StartTime = DateTime.Now;
+    static DateTime StartTime = Process.GetCurrentProcess().StartTime;
     static Rectangle[] BiggestFoundRectangles;
     static ParticleSearchParams[] GlobalBestParams;
     static float[] GlobalBestFitness;
@@ -31,9 +32,20 @@ public class Program
 
     private static void FindSolutionsUsingParticleAlgo(ISearchField[] searchFields)
     {
-        var searchParticles = InitParticleSearchParams(searchFields);
+        int count = 1;
+        SearchParticle[][] searchParticles = InitParticleSearchParams(searchFields);
         while (true)
         {
+            // Reset the particles every n iterations, to prevent them of getting stuck with low velocities
+            if (count % 8000 == 0)
+            {
+                count = 0;
+                searchParticles = InitParticleSearchParams(searchFields);
+#if DEBUG
+                Console.WriteLine("Resetting particles");
+#endif
+            }
+            count++;
             var foundNewSolution = false;
             for (var i = 0; i < searchFields.Length; i++)
             {
@@ -42,7 +54,11 @@ public class Program
                 {
                     var rectangle = particle.AsRectangle();
                     var fitness = 0f;
-                    if (RectangleInsideField(rectangle) && !searchField.AnyPointsInRect(rectangle))
+                    if (RectangleInsideField(rectangle) && !searchField.AnyPointsInRect(
+                        new Vector2(particle.CurSearchParams.RectangleCenterXPos, particle.CurSearchParams.RectangleCenterYPos),
+                        particle.CurSearchParams.RectangleWidth,
+                        particle.CurSearchParams.RectangleHeight,
+                        rectangle))
                     {
                         fitness = rectangle.Area;
 
@@ -253,6 +269,7 @@ public class Program
         for (var i = 0; i < searchFields.Length; i++)
         {
             int numberOfParticles = (((int)MaxSeconds * 3) / searchFields.Length) + 40;
+            // int numberOfParticles = 203;
 
             searchParams[i] = new SearchParticle[numberOfParticles];
 
@@ -261,14 +278,15 @@ public class Program
             {
                 searchParams[i][j] = new SearchParticle();
 
-                var xPos = Random.Shared.NextSingle();
-                var yPos = Random.Shared.NextSingle();
+                var xPos = Random.Shared.NextSingle() * 0.9f + 0.05f;
+                var yPos = Random.Shared.NextSingle() * 0.9f + 0.05f;
                 var width = Random.Shared.NextSingle();
                 var height = Random.Shared.NextSingle();
                 searchParams[i][j].CurSearchParams.RectangleCenterXPos = xPos;
                 searchParams[i][j].CurSearchParams.RectangleCenterYPos = yPos;
-                searchParams[i][j].CurSearchParams.RectangleWidth = MathF.Min(width, 1 - xPos);
-                searchParams[i][j].CurSearchParams.RectangleHeight = MathF.Min(height, 1 - yPos);
+                searchParams[i][j].CurSearchParams.RectangleWidth = MathF.Min(width, 1f - xPos);
+                searchParams[i][j].CurSearchParams.RectangleHeight = MathF.Min(height, 1f - yPos);
+                searchParams[i][j].CurSearchParams.Angle = (Random.Shared.NextSingle() - 0.5f) * MathF.PI;
 
                 searchParams[i][j].BestParamsSoFar.RectangleHeight = searchParams[i][j].CurSearchParams.RectangleHeight;
                 searchParams[i][j].BestParamsSoFar.RectangleWidth = searchParams[i][j].CurSearchParams.RectangleWidth;
@@ -279,12 +297,12 @@ public class Program
                 searchParams[i][j].Velocities.RectangleWidth = (Random.Shared.NextSingle() - 0.5f);
                 searchParams[i][j].Velocities.RectangleCenterYPos = (Random.Shared.NextSingle() - 0.5f) * 0.2f;
                 searchParams[i][j].Velocities.RectangleCenterXPos = (Random.Shared.NextSingle() - 0.5f) * 0.2f;
+                searchParams[i][j].Velocities.Angle = (Random.Shared.NextSingle() - 0.5f) * 0.2f;
 
                 searchParams[i][j].Parameters.Z1 = Random.Shared.NextSingle();
                 searchParams[i][j].Parameters.Z2 = Random.Shared.NextSingle();
-                searchParams[i][j].Parameters.Momentum = -0.3f;
-
-                searchParams[i][j].Parameters.MemoryCoefficient = 1.5f;
+                searchParams[i][j].Parameters.Momentum = 1f;
+                searchParams[i][j].Parameters.MemoryCoefficient = 3.5f;
                 searchParams[i][j].Parameters.SocialCoefficient = 2.3f;
             }
         }
@@ -368,7 +386,7 @@ public class Program
             var randY = Random.Shared.NextSingle() * (1 - (height)) + (height / 2f);
             var rect = Rectangle.FromParams(randX, randY, width, height, 0f);
 
-            if (!searchField.AnyPointsInRect(rect))
+            if (!searchField.AnyPointsInRect(new Vector2(randX, randY), width, height, rect))
             {
                 foundValidPlacement = true;
                 BiggestFoundRectangles[searchFieldIndex] = rect;
@@ -417,7 +435,7 @@ public class Program
     private static void SetupExitTimer()
     {
         var secondsEpsilonForExit = 0.1f;
-        var timerTest = new System.Timers.Timer((DateTime.Now - StartTime)
+        var timerTest = new System.Timers.Timer((StartTime - DateTime.Now)
                         .Add(TimeSpan.FromSeconds(MaxSeconds))
                         .Subtract(TimeSpan.FromSeconds(secondsEpsilonForExit)));
         timerTest.Elapsed += Exit;
@@ -436,7 +454,7 @@ public class Program
 public interface ISearchField
 {
     int NumberOfPoints { get; }
-    bool AnyPointsInRect(Rectangle rect);
+    bool AnyPointsInRect(Vector2 center, float width, float height, Rectangle rect);
 }
 
 public class SearchFieldBasic : ISearchField
@@ -450,10 +468,17 @@ public class SearchFieldBasic : ISearchField
         this.Points = points;
     }
 
-    public bool AnyPointsInRect(Rectangle rect)
+    public bool AnyPointsInRect(Vector2 center, float width, float height, Rectangle rect)
     {
-        // TODO: update for roated rectangles
-        return Points.Any(p => PointInRectangle(rect, p));
+        // First find all points that are within the enclosing circle of the rectangle
+        // The radius for the enclosing circle is given by sqrt((a/2)² + (b/2)²), the squared of it then is ((a/2)² + (b/2)²)
+        var halfWidth = width / 2;
+        var halfHeight = height / 2;
+        var radiusSquared = ((halfWidth * halfWidth) + (halfHeight * halfHeight));
+        var pointsInsideCircle = Points.Where(p => Vector2.DistanceSquared(center, p) < radiusSquared);
+
+        // Only on the points inside the circle we have to do the more expensive PointsInRectangle test
+        return pointsInsideCircle.Any(p => PointInRectangle(rect, p));
     }
 
     float isLeft(Vector2 P0, Vector2 P1, Vector2 P2)
@@ -496,7 +521,7 @@ public class Rectangle
         var c = new Vector2(b.X, -b.Y);
         var d = new Vector2(-c.X, c.Y);
 
-        var transformationMatrix = Matrix3x2.CreateTranslation(centerX, centerY) * Matrix3x2.CreateRotation(angle);
+        var transformationMatrix = Matrix3x2.CreateRotation(angle) * Matrix3x2.CreateTranslation(centerX, centerY);
 
         return new Rectangle
         {
@@ -529,7 +554,11 @@ public class SearchParticle
 
     public Rectangle AsRectangle()
     {
-        return Rectangle.FromParams(CurSearchParams.RectangleCenterXPos, CurSearchParams.RectangleCenterYPos, CurSearchParams.RectangleWidth, CurSearchParams.RectangleHeight, CurSearchParams.Angle);
+        return Rectangle.FromParams(CurSearchParams.RectangleCenterXPos,
+                                    CurSearchParams.RectangleCenterYPos,
+                                    CurSearchParams.RectangleWidth,
+                                    CurSearchParams.RectangleHeight,
+                                    CurSearchParams.Angle);
     }
 }
 
@@ -560,7 +589,7 @@ public class Velocities
 {
     public float RectangleCenterXPos { get; set; }
     public float RectangleCenterYPos { get; set; }
-    public float Angle;
+    public float Angle { get; set; }
     public float RectangleWidth { get; set; }
     public float RectangleHeight { get; set; }
 };

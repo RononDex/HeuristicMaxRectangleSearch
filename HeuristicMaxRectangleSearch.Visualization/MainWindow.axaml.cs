@@ -70,7 +70,7 @@ public partial class MainWindow : Window
             if (!double.IsNaN(this.Bounds.Height))
             {
                 alreadyRendered = true;
-                var field = 0;
+                var field = 1;
                 var folder = "/home/cobra/dev/HeuristicMaxRectangleSearch/HeuristicMaxRectangleSearch/";
                 var inFilePath = $"{folder}points.in";
                 var outFilePath = $"{folder}points.out";
