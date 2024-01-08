@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.Numerics;
 using System.Text;
 using System.Timers;
 
@@ -65,6 +66,8 @@ public class Program
                                 GlobalBestParams[i].RectangleWidth = particle.CurSearchParams.RectangleWidth;
                                 BiggestFoundRectangles[i].A = rectangle.A;
                                 BiggestFoundRectangles[i].B = rectangle.B;
+                                BiggestFoundRectangles[i].C = rectangle.C;
+                                BiggestFoundRectangles[i].D = rectangle.D;
 
                                 foundNewSolution = true;
                             }
@@ -103,7 +106,7 @@ public class Program
             }
             if (particle.CurSearchParams.RectangleWidth <= 0)
             {
-                particle.CurSearchParams.RectangleWidth = 0.0000001f;
+                particle.CurSearchParams.RectangleWidth = 0.00001f;
                 particle.Velocities.RectangleWidth = Math.Abs(particle.Velocities.RectangleWidth);
             }
             if (particle.CurSearchParams.RectangleHeight >= 1)
@@ -113,8 +116,16 @@ public class Program
             }
             if (particle.CurSearchParams.RectangleHeight <= 0)
             {
-                particle.CurSearchParams.RectangleHeight = 0.0000001f;
+                particle.CurSearchParams.RectangleHeight = 0.00001f;
                 particle.Velocities.RectangleHeight = Math.Abs(particle.Velocities.RectangleHeight);
+            }
+            if (particle.CurSearchParams.Angle >= MathF.PI)
+            {
+                particle.CurSearchParams.Angle = particle.CurSearchParams.Angle - MathF.PI;
+            }
+            if (particle.CurSearchParams.Angle <= 0)
+            {
+                particle.CurSearchParams.Angle = particle.CurSearchParams.Angle + MathF.PI;
             }
 
             var limitHeight = 0.4f;
@@ -168,6 +179,19 @@ public class Program
                     particle.Velocities.RectangleCenterYPos = limitY;
                 }
             }
+
+            var limitAngle = 0.4f;
+            if (Math.Abs(particle.Velocities.Angle) >= limitAngle)
+            {
+                if (particle.Velocities.Angle < 0)
+                {
+                    particle.Velocities.Angle = -limitAngle;
+                }
+                else
+                {
+                    particle.Velocities.Angle = limitAngle;
+                }
+            }
         }
     }
 
@@ -191,15 +215,23 @@ public class Program
                     particle.Parameters.Momentum * particle.Velocities.RectangleCenterXPos
                     + particle.Parameters.MemoryCoefficient * particle.Parameters.Z1 * (particle.BestParamsSoFar.RectangleCenterXPos - particle.CurSearchParams.RectangleCenterXPos)
                     + particle.Parameters.SocialCoefficient * particle.Parameters.Z2 * (globalBestParams.RectangleCenterXPos - particle.CurSearchParams.RectangleCenterXPos);
+            particle.Velocities.Angle =
+                    particle.Parameters.Momentum * particle.Velocities.Angle
+                    + particle.Parameters.MemoryCoefficient * particle.Parameters.Z1 * (particle.BestParamsSoFar.Angle - particle.CurSearchParams.Angle)
+                    + particle.Parameters.SocialCoefficient * particle.Parameters.Z2 * (globalBestParams.Angle - particle.CurSearchParams.Angle);
         }
     }
 
     private static bool RectangleInsideField(Rectangle rectangle)
     {
-        return rectangle.A.X > 0 && rectangle.A.X < 1
-                && rectangle.A.Y > 0 && rectangle.A.Y < 1
-                && rectangle.B.X > 0 && rectangle.B.X < 1
-                && rectangle.B.Y > 0 && rectangle.B.Y < 1;
+        return rectangle.A.X >= 0 && rectangle.A.X <= 1
+                && rectangle.A.Y >= 0 && rectangle.A.Y <= 1
+                && rectangle.B.X >= 0 && rectangle.B.X <= 1
+                && rectangle.B.Y >= 0 && rectangle.B.Y <= 1
+                && rectangle.C.X >= 0 && rectangle.C.X <= 1
+                && rectangle.C.Y >= 0 && rectangle.C.Y <= 1
+                && rectangle.D.X >= 0 && rectangle.D.X <= 1
+                && rectangle.D.Y >= 0 && rectangle.D.Y <= 1;
     }
 
     private static void Step(ISearchField searchField, SearchParticle[] searchParticles)
@@ -210,6 +242,7 @@ public class Program
             particle.CurSearchParams.RectangleCenterYPos += particle.Velocities.RectangleCenterYPos;
             particle.CurSearchParams.RectangleWidth += particle.Velocities.RectangleWidth;
             particle.CurSearchParams.RectangleHeight += particle.Velocities.RectangleHeight;
+            particle.CurSearchParams.Angle += particle.Velocities.Angle;
         }
     }
 
@@ -252,7 +285,7 @@ public class Program
                 searchParams[i][j].Parameters.Momentum = -0.3f;
 
                 searchParams[i][j].Parameters.MemoryCoefficient = 1.5f;
-                searchParams[i][j].Parameters.SocialCoefficient = 1.2f;
+                searchParams[i][j].Parameters.SocialCoefficient = 2.3f;
             }
         }
 
@@ -264,16 +297,7 @@ public class Program
         var outputStr = new StringBuilder();
         for (var i = 0; i < BiggestFoundRectangles.Length; i++)
         {
-            var width = BiggestFoundRectangles[i].B.X - BiggestFoundRectangles[i].A.X;
-            var height = BiggestFoundRectangles[i].B.Y - BiggestFoundRectangles[i].A.Y;
-
             outputStr.Append(BiggestFoundRectangles[i].A.X);
-            outputStr.Append(",");
-            outputStr.Append(BiggestFoundRectangles[i].A.Y);
-
-            outputStr.Append(" ");
-
-            outputStr.Append(BiggestFoundRectangles[i].A.X + width);
             outputStr.Append(",");
             outputStr.Append(BiggestFoundRectangles[i].A.Y);
 
@@ -285,9 +309,15 @@ public class Program
 
             outputStr.Append(" ");
 
-            outputStr.Append(BiggestFoundRectangles[i].B.X - width);
+            outputStr.Append(BiggestFoundRectangles[i].C.X);
             outputStr.Append(",");
-            outputStr.Append(BiggestFoundRectangles[i].B.Y);
+            outputStr.Append(BiggestFoundRectangles[i].C.Y);
+
+            outputStr.Append(" ");
+
+            outputStr.Append(BiggestFoundRectangles[i].D.X);
+            outputStr.Append(",");
+            outputStr.Append(BiggestFoundRectangles[i].D.Y);
 
             if (i != BiggestFoundRectangles.Length - 1)
             {
@@ -319,10 +349,11 @@ public class Program
             Console.WriteLine($"Found random rectangle for field {i}: {BiggestFoundRectangles[i].ToString()}");
             Console.WriteLine($"  --> With Area {BiggestFoundRectangles[i].Area}");
 #endif
-            GlobalBestParams[i].RectangleCenterXPos = (BiggestFoundRectangles[i].B.X - BiggestFoundRectangles[i].A.X) / 2f;
-            GlobalBestParams[i].RectangleCenterYPos = (BiggestFoundRectangles[i].B.Y - BiggestFoundRectangles[i].A.Y) / 2f;
-            GlobalBestParams[i].RectangleHeight = BiggestFoundRectangles[i].B.Y - BiggestFoundRectangles[i].A.Y;
-            GlobalBestParams[i].RectangleWidth = BiggestFoundRectangles[i].B.X - BiggestFoundRectangles[i].A.X;
+            GlobalBestParams[i].RectangleCenterXPos = (BiggestFoundRectangles[i].C.X - BiggestFoundRectangles[i].A.X) / 2f;
+            GlobalBestParams[i].RectangleCenterYPos = (BiggestFoundRectangles[i].C.Y - BiggestFoundRectangles[i].A.Y) / 2f;
+            GlobalBestParams[i].RectangleHeight = BiggestFoundRectangles[i].C.Y - BiggestFoundRectangles[i].A.Y;
+            GlobalBestParams[i].RectangleWidth = BiggestFoundRectangles[i].C.X - BiggestFoundRectangles[i].A.X;
+            GlobalBestParams[i].Angle = 0;
             GlobalBestFitness[i] = BiggestFoundRectangles[i].Area;
         }
     }
@@ -333,13 +364,9 @@ public class Program
         var tries = 0;
         while (!foundValidPlacement && tries < 15)
         {
-            var randX = Random.Shared.NextSingle() * (1 - width);
-            var randY = Random.Shared.NextSingle() * (1 - height);
-            var rect = new Rectangle
-            {
-                A = new Point(randX, randY),
-                B = new Point(randX + width, randY + height)
-            };
+            var randX = Random.Shared.NextSingle() * (1 - (width)) + (width / 2f);
+            var randY = Random.Shared.NextSingle() * (1 - (height)) + (height / 2f);
+            var rect = Rectangle.FromParams(randX, randY, width, height, 0f);
 
             if (!searchField.AnyPointsInRect(rect))
             {
@@ -359,9 +386,9 @@ public class Program
 
         MaxSeconds = float.Parse(lines[0]);
 
-#if !DEBUG
+        // #if !DEBUG
         SetupExitTimer();
-#endif
+        // #endif
         var numberOfFields = int.Parse(lines[1]);
         BiggestFoundRectangles = new Rectangle[numberOfFields];
         var searchFields = new SearchFieldBasic[numberOfFields];
@@ -370,7 +397,7 @@ public class Program
         {
             var splitted = lines[i + 2].Split(' ');
             var numberOfPoints = int.Parse(splitted[0]);
-            var points = new Point[numberOfPoints];
+            var points = new Vector2[numberOfPoints];
             var searchField = new SearchFieldBasic(points);
             searchFields[i] = searchField;
 
@@ -380,7 +407,7 @@ public class Program
                 var x = float.Parse(coordSplitted[0]);
                 var y = float.Parse(coordSplitted[1]);
 
-                searchField.Points[j] = new Point(x, y);
+                searchField.Points[j] = new Vector2(x, y);
             }
         }
 
@@ -389,8 +416,10 @@ public class Program
 
     private static void SetupExitTimer()
     {
-        var secondsEpsilonForExit = 0.05f;
-        var timerTest = new System.Timers.Timer((MaxSeconds - secondsEpsilonForExit) * 1000);
+        var secondsEpsilonForExit = 0.1f;
+        var timerTest = new System.Timers.Timer((DateTime.Now - StartTime)
+                        .Add(TimeSpan.FromSeconds(MaxSeconds))
+                        .Subtract(TimeSpan.FromSeconds(secondsEpsilonForExit)));
         timerTest.Elapsed += Exit;
         timerTest.Start();
     }
@@ -412,46 +441,80 @@ public interface ISearchField
 
 public class SearchFieldBasic : ISearchField
 {
-    public Point[] Points { get; private set; }
+    public Vector2[] Points { get; private set; }
 
     public int NumberOfPoints => Points.Length;
 
-    public SearchFieldBasic(Point[] points)
+    public SearchFieldBasic(Vector2[] points)
     {
         this.Points = points;
     }
 
     public bool AnyPointsInRect(Rectangle rect)
     {
-        return Points.Any(p => p.X > rect.A.X && p.X < rect.B.X && p.Y > rect.A.Y && p.Y < rect.B.Y);
+        // TODO: update for roated rectangles
+        return Points.Any(p => PointInRectangle(rect, p));
+    }
+
+    float isLeft(Vector2 P0, Vector2 P1, Vector2 P2)
+    {
+        return ((P1.X - P0.X) * (P2.Y - P0.Y) - (P2.X - P0.X) * (P1.Y - P0.Y));
+    }
+    bool PointInRectangle(Rectangle rect, Vector2 P)
+    {
+        return (isLeft(rect.A, rect.B, P) > 0 && isLeft(rect.B, rect.C, P) > 0 && isLeft(rect.C, rect.D, P) > 0 && isLeft(rect.D, rect.A, P) > 0);
     }
 }
 
 public record Point(float X, float Y);
 
 /// <summary>
-/// Will always be defined with A at the lower left corner and B at the top right corner
-///                                   B
+/// Will always be defined with A at the lower left corner and C at the top right corner
+///        D                          C
 /// 		+------------------------+
 ///         |                        |
 ///         |                        |
 ///         |                        |
 /// 		+------------------------+
-/// 	   A
+/// 	   A                          B
+///  Y
+///  |
+///  |
+///  ---- X
 /// </summary>
 public class Rectangle
 {
-    public Point A;
-    public Point B;
+    public Vector2 A;
+    public Vector2 B;
+    public Vector2 C;
+    public Vector2 D;
+
+    public static Rectangle FromParams(float centerX, float centerY, float width, float height, float angle)
+    {
+        var a = new Vector2(-width / 2f, -height / 2f);
+        var b = new Vector2(-a.X, a.Y);
+        var c = new Vector2(b.X, -b.Y);
+        var d = new Vector2(-c.X, c.Y);
+
+        var transformationMatrix = Matrix3x2.CreateTranslation(centerX, centerY) * Matrix3x2.CreateRotation(angle);
+
+        return new Rectangle
+        {
+            A = Vector2.Transform(a, transformationMatrix),
+            B = Vector2.Transform(b, transformationMatrix),
+            C = Vector2.Transform(c, transformationMatrix),
+            D = Vector2.Transform(d, transformationMatrix)
+        };
+    }
 
     public float Area
     {
-        get { return (B.X - A.X) * (B.Y - A.Y); }
+        get { return Vector2.Distance(D, A) * Vector2.Distance(A, B); }
     }
 
     public override string ToString()
     {
-        return $"A: {A.X},{A.Y}  B: {B.X},{B.Y}";
+        return $"A: {A.X},{A.Y}  B: {B.X},{B.Y}  C: {C.X},{C.Y}  D: {D.X},{D.Y}";
     }
 }
 
@@ -466,11 +529,7 @@ public class SearchParticle
 
     public Rectangle AsRectangle()
     {
-        return new Rectangle
-        {
-            A = new Point(CurSearchParams.RectangleCenterXPos - CurSearchParams.RectangleWidth / 2, CurSearchParams.RectangleCenterYPos - CurSearchParams.RectangleHeight / 2),
-            B = new Point(CurSearchParams.RectangleCenterXPos + CurSearchParams.RectangleWidth / 2, CurSearchParams.RectangleCenterYPos + CurSearchParams.RectangleHeight / 2),
-        };
+        return Rectangle.FromParams(CurSearchParams.RectangleCenterXPos, CurSearchParams.RectangleCenterYPos, CurSearchParams.RectangleWidth, CurSearchParams.RectangleHeight, CurSearchParams.Angle);
     }
 }
 
@@ -478,7 +537,7 @@ public class ParticleSearchParams : ICloneable
 {
     public float RectangleCenterXPos { get; set; }
     public float RectangleCenterYPos { get; set; }
-    //public float Angle;
+    public float Angle;
     public float RectangleWidth { get; set; }
     public float RectangleHeight { get; set; }
 
@@ -501,7 +560,7 @@ public class Velocities
 {
     public float RectangleCenterXPos { get; set; }
     public float RectangleCenterYPos { get; set; }
-    //public float Angle;
+    public float Angle;
     public float RectangleWidth { get; set; }
     public float RectangleHeight { get; set; }
 };

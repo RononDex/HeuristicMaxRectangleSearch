@@ -111,20 +111,14 @@ public partial class MainWindow : Window
                     for (var i = 0; i < 4; i++)
                     {
                         var coordinateSplitted = rectLineSplitted[i].Split(',');
-                        points[i] = new Point(float.Parse(coordinateSplitted[0]), float.Parse(coordinateSplitted[1]));
+                        points[i] = new Point(
+                                        float.Parse(coordinateSplitted[0]) * scalingFactor + (xOffset * scalingFactor),
+                                        float.Parse(coordinateSplitted[1]) * scalingFactor + (yOffset * scalingFactor));
                     }
-                    var outRect = new Rect(
-                                            (points[0].X + xOffset) * scalingFactor,
-                                            (points[0].Y + yOffset) * scalingFactor,
-                                            Math.Abs(points[0].X - points[1].X) * scalingFactor,
-                                            Math.Abs(points[0].Y - points[2].Y) * scalingFactor);
-                    context.DrawRectangle(new SolidColorBrush(Colors.Transparent),
-                                    new Pen(new SolidColorBrush(Colors.Red), 2),
-                                    new Rect(
-                                            (points[0].X + xOffset) * scalingFactor,
-                                            (points[0].Y + yOffset) * scalingFactor,
-                                            Math.Abs(points[0].X - points[1].X) * scalingFactor,
-                                            Math.Abs(points[0].Y - points[2].Y) * scalingFactor));
+                    context.DrawLine(new Pen(new SolidColorBrush(Colors.Red), 2), points[0], points[1]);
+                    context.DrawLine(new Pen(new SolidColorBrush(Colors.Red), 2), points[1], points[2]);
+                    context.DrawLine(new Pen(new SolidColorBrush(Colors.Red), 2), points[2], points[3]);
+                    context.DrawLine(new Pen(new SolidColorBrush(Colors.Red), 2), points[3], points[0]);
                 }
                 catch (Exception ex)
                 {
