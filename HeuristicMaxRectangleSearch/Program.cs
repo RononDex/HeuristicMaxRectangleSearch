@@ -50,6 +50,11 @@ public class Program
             for (var i = 0; i < searchFields.Length; i++)
             {
                 var searchField = searchFields[i];
+
+                // SKip empty fields
+                if (searchField.NumberOfPoints == 0)
+                    continue;
+
                 foreach (var particle in searchParticles[i])
                 {
                     var rectangle = particle.AsRectangle();
@@ -268,6 +273,10 @@ public class Program
 
         for (var i = 0; i < searchFields.Length; i++)
         {
+            // Skip empty fields, we already have the best solution here
+            if (searchFields[i].NumberOfPoints == 0)
+                continue;
+
             int numberOfParticles = (((int)MaxSeconds * 3) / searchFields.Length) + 40;
             // int numberOfParticles = 203;
 
@@ -355,7 +364,18 @@ public class Program
             // Search with decreasing rectangle size if we could not place any rectangle
             // with the dimensions
             GlobalBestParams[i] = new ParticleSearchParams();
-            var averageSpaceBetweenPoints = 1f / MathF.Sqrt(searchFields[i].NumberOfPoints);
+            var averageSpaceBetweenPoints = 1f;
+            if (searchFields[i].NumberOfPoints == 0)
+            {
+                GlobalBestParams[i].RectangleWidth = 1f;
+                GlobalBestParams[i].RectangleHeight = 1f;
+                GlobalBestParams[i].Angle = 0f;
+                GlobalBestParams[i].RectangleCenterXPos = 0.5f;
+                GlobalBestParams[i].RectangleCenterYPos = 0.5f;
+                BiggestFoundRectangles[i] = Rectangle.FromParams(0.5f, 0.5f, 1f, 1f, 0f);
+                continue;
+            }
+            averageSpaceBetweenPoints = 1f / MathF.Sqrt(searchFields[i].NumberOfPoints);
             var rectLength = averageSpaceBetweenPoints * 1.5f;
 
             while (!FindSingleRandomRectanlge(searchFields[i], rectLength, rectLength, i))
