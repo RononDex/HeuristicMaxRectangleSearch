@@ -17,33 +17,39 @@ public class Program
         Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
 
         var searchFields = ParseInput();
+        // Setup a timer that will exit the application before we reach the defined max time
+        // #if !DEBUG
+        SetupExitTimer();
+        // #endif
 
 #if DEBUG
         Console.WriteLine($"Parsing took {(DateTime.Now - StartTime).TotalMilliseconds}ms");
 #endif
 
-        // Before we start using any heuristics, make a random guess with a small rectangle
+        // Before we start using any complicated algorithm, make a random guess with a small square
         // This ensures that we will always have an 'answer' ready that is valid
         FindSingleRandomRectangle(searchFields);
         OutputResults();
 
+        // Then use the reste of the time using Particle Search Algorithm
         FindSolutionsUsingParticleAlgo(searchFields);
     }
 
     private static void FindSolutionsUsingParticleAlgo(ISearchField[] searchFields)
     {
         int count = 1;
-        SearchParticle[][] searchParticles = InitParticleSearchParams(searchFields);
+        int iteration = 0;
+        SearchParticle[][] searchParticles = InitParticleSearchParams(searchFields, iteration);
         while (true)
         {
             // Reset the particles every n iterations, to prevent them of getting stuck with low velocities
             if (count % 8000 == 0)
             {
-                count = 0;
-                searchParticles = InitParticleSearchParams(searchFields);
 #if DEBUG
                 Console.WriteLine("Resetting particles");
 #endif
+                count = 0;
+                searchParticles = InitParticleSearchParams(searchFields, iteration);
             }
             count++;
             var foundNewSolution = false;
@@ -105,6 +111,8 @@ public class Program
             {
                 OutputResults();
             }
+
+            iteration++;
         }
     }
 
@@ -149,7 +157,7 @@ public class Program
                 particle.CurSearchParams.Angle = particle.CurSearchParams.Angle + MathF.PI;
             }
 
-            var limitHeight = 0.4f;
+            var limitHeight = 0.25f;
             if (Math.Abs(particle.Velocities.RectangleHeight) >= limitHeight)
             {
                 if (particle.Velocities.RectangleHeight < 0)
@@ -162,7 +170,7 @@ public class Program
                 }
             }
 
-            var limitWidth = 0.4f;
+            var limitWidth = 0.25f;
             if (Math.Abs(particle.Velocities.RectangleWidth) >= limitWidth)
             {
                 if (particle.Velocities.RectangleWidth < 0)
@@ -175,7 +183,7 @@ public class Program
                 }
             }
 
-            var limitX = 0.4f;
+            var limitX = 0.15f;
             if (Math.Abs(particle.Velocities.RectangleCenterXPos) >= limitX)
             {
                 if (particle.Velocities.RectangleCenterXPos < 0)
@@ -188,7 +196,7 @@ public class Program
                 }
             }
 
-            var limitY = 0.4f;
+            var limitY = 0.15f;
             if (Math.Abs(particle.Velocities.RectangleCenterYPos) >= limitY)
             {
                 if (particle.Velocities.RectangleCenterYPos < 0)
@@ -201,7 +209,7 @@ public class Program
                 }
             }
 
-            var limitAngle = 0.4f;
+            var limitAngle = 0.3f;
             if (Math.Abs(particle.Velocities.Angle) >= limitAngle)
             {
                 if (particle.Velocities.Angle < 0)
@@ -267,7 +275,7 @@ public class Program
         }
     }
 
-    private static SearchParticle[][] InitParticleSearchParams(ISearchField[] searchFields)
+    private static SearchParticle[][] InitParticleSearchParams(ISearchField[] searchFields, int iteration)
     {
         var searchParams = new SearchParticle[searchFields.Length][];
 
@@ -312,7 +320,7 @@ public class Program
                 searchParams[i][j].Parameters.Z2 = Random.Shared.NextSingle();
                 searchParams[i][j].Parameters.Momentum = 1f;
                 searchParams[i][j].Parameters.MemoryCoefficient = 3.5f;
-                searchParams[i][j].Parameters.SocialCoefficient = 2.3f;
+                searchParams[i][j].Parameters.SocialCoefficient = 2.3f;// + (0.5f * iteration);
             }
         }
 
@@ -424,9 +432,6 @@ public class Program
 
         MaxSeconds = float.Parse(lines[0]);
 
-        // #if !DEBUG
-        SetupExitTimer();
-        // #endif
         var numberOfFields = int.Parse(lines[1]);
         BiggestFoundRectangles = new Rectangle[numberOfFields];
         var searchFields = new SearchFieldBasic[numberOfFields];
