@@ -40,10 +40,12 @@ public class Program
         int count = 1;
         int iteration = 0;
         SearchParticle[][] searchParticles = InitParticleSearchParams(searchFields, iteration);
+
+        // While true loop to execute until application exits
         while (true)
         {
             // Reset the particles every n iterations, to prevent them of getting stuck with low velocities
-            if (count % 8000 == 0)
+            if (count % 3000 == 0)
             {
 #if DEBUG
                 Console.WriteLine("Resetting particles");
@@ -80,6 +82,7 @@ public class Program
                             particle.BestParamsSoFar.RectangleCenterXPos = particle.CurSearchParams.RectangleCenterXPos;
                             particle.BestParamsSoFar.RectangleHeight = particle.CurSearchParams.RectangleHeight;
                             particle.BestParamsSoFar.RectangleWidth = particle.CurSearchParams.RectangleWidth;
+                            particle.BestParamsSoFar.Angle = particle.CurSearchParams.Angle;
 
                             if (fitness > GlobalBestFitness[i])
                             {
@@ -91,6 +94,7 @@ public class Program
                                 GlobalBestParams[i].RectangleCenterXPos = particle.CurSearchParams.RectangleCenterXPos;
                                 GlobalBestParams[i].RectangleHeight = particle.CurSearchParams.RectangleHeight;
                                 GlobalBestParams[i].RectangleWidth = particle.CurSearchParams.RectangleWidth;
+                                GlobalBestParams[i].Angle = particle.CurSearchParams.Angle;
                                 BiggestFoundRectangles[i].A = rectangle.A;
                                 BiggestFoundRectangles[i].B = rectangle.B;
                                 BiggestFoundRectangles[i].C = rectangle.C;
@@ -118,6 +122,8 @@ public class Program
 
     private static void ConfineParticles(SearchParticle[] searchParticles)
     {
+        // Ensure that particles are not outside of the solution space
+        // and limit the velocities
         foreach (var particle in searchParticles)
         {
             if (particle.CurSearchParams.RectangleCenterXPos <= 0)
@@ -299,32 +305,46 @@ public class Program
                 var yPos = Random.Shared.NextSingle() * 0.9f + 0.05f;
                 var width = Random.Shared.NextSingle();
                 var height = Random.Shared.NextSingle();
-                searchParams[i][j].CurSearchParams.RectangleCenterXPos = xPos;
-                searchParams[i][j].CurSearchParams.RectangleCenterYPos = yPos;
-                searchParams[i][j].CurSearchParams.RectangleWidth = MathF.Min(width, 1f - xPos);
-                searchParams[i][j].CurSearchParams.RectangleHeight = MathF.Min(height, 1f - yPos);
-                searchParams[i][j].CurSearchParams.Angle = (Random.Shared.NextSingle() - 0.5f) * MathF.PI;
+                var angle = (Random.Shared.NextSingle() - 0.5f) * MathF.PI;
+                SetupParticle(searchParams, i, j, xPos, yPos, width, height, angle);
+            }
 
-                searchParams[i][j].BestParamsSoFar.RectangleHeight = searchParams[i][j].CurSearchParams.RectangleHeight;
-                searchParams[i][j].BestParamsSoFar.RectangleWidth = searchParams[i][j].CurSearchParams.RectangleWidth;
-                searchParams[i][j].BestParamsSoFar.RectangleCenterYPos = searchParams[i][j].CurSearchParams.RectangleCenterYPos;
-                searchParams[i][j].BestParamsSoFar.RectangleCenterXPos = searchParams[i][j].CurSearchParams.RectangleCenterXPos;
+            // Add another 10 particles at the current global best known position
+            for (var j = 0; j < 10; j++)
+            {
+                searchParams[i][j] = new SearchParticle();
 
-                searchParams[i][j].Velocities.RectangleHeight = (Random.Shared.NextSingle() - 0.5f);
-                searchParams[i][j].Velocities.RectangleWidth = (Random.Shared.NextSingle() - 0.5f);
-                searchParams[i][j].Velocities.RectangleCenterYPos = (Random.Shared.NextSingle() - 0.5f) * 0.2f;
-                searchParams[i][j].Velocities.RectangleCenterXPos = (Random.Shared.NextSingle() - 0.5f) * 0.2f;
-                searchParams[i][j].Velocities.Angle = (Random.Shared.NextSingle() - 0.5f) * 0.2f;
-
-                searchParams[i][j].Parameters.Z1 = Random.Shared.NextSingle();
-                searchParams[i][j].Parameters.Z2 = Random.Shared.NextSingle();
-                searchParams[i][j].Parameters.Momentum = 1f;
-                searchParams[i][j].Parameters.MemoryCoefficient = 3.5f;
-                searchParams[i][j].Parameters.SocialCoefficient = 2.3f;// + (0.5f * iteration);
+                SetupParticle(searchParams, i, j, GlobalBestParams[i].RectangleCenterXPos, GlobalBestParams[i].RectangleCenterYPos, GlobalBestParams[i].RectangleWidth, GlobalBestParams[i].RectangleHeight, GlobalBestParams[i].Angle);
             }
         }
 
         return searchParams;
+    }
+
+    private static void SetupParticle(SearchParticle[][] searchParams, int i, int j, float xPos, float yPos, float width, float height, float angle)
+    {
+        searchParams[i][j].CurSearchParams.RectangleCenterXPos = xPos;
+        searchParams[i][j].CurSearchParams.RectangleCenterYPos = yPos;
+        searchParams[i][j].CurSearchParams.RectangleWidth = MathF.Min(width, 1f - xPos);
+        searchParams[i][j].CurSearchParams.RectangleHeight = MathF.Min(height, 1f - yPos);
+        searchParams[i][j].CurSearchParams.Angle = angle;
+
+        searchParams[i][j].BestParamsSoFar.RectangleHeight = searchParams[i][j].CurSearchParams.RectangleHeight;
+        searchParams[i][j].BestParamsSoFar.RectangleWidth = searchParams[i][j].CurSearchParams.RectangleWidth;
+        searchParams[i][j].BestParamsSoFar.RectangleCenterYPos = searchParams[i][j].CurSearchParams.RectangleCenterYPos;
+        searchParams[i][j].BestParamsSoFar.RectangleCenterXPos = searchParams[i][j].CurSearchParams.RectangleCenterXPos;
+
+        searchParams[i][j].Velocities.RectangleHeight = (Random.Shared.NextSingle() - 0.5f);
+        searchParams[i][j].Velocities.RectangleWidth = (Random.Shared.NextSingle() - 0.5f);
+        searchParams[i][j].Velocities.RectangleCenterYPos = (Random.Shared.NextSingle() - 0.5f) * 0.2f;
+        searchParams[i][j].Velocities.RectangleCenterXPos = (Random.Shared.NextSingle() - 0.5f) * 0.2f;
+        searchParams[i][j].Velocities.Angle = (Random.Shared.NextSingle() - 0.5f) * 0.2f;
+
+        searchParams[i][j].Parameters.Z1 = Random.Shared.NextSingle();
+        searchParams[i][j].Parameters.Z2 = Random.Shared.NextSingle();
+        searchParams[i][j].Parameters.Momentum = 1f;
+        searchParams[i][j].Parameters.MemoryCoefficient = 3.5f;
+        searchParams[i][j].Parameters.SocialCoefficient = 2.3f;// + (0.5f * iteration);
     }
 
     public static void OutputResults()
